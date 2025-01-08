@@ -41,13 +41,6 @@ namespace Onllama.ModelScope2Registry
                 await next.Invoke();
             });
 
-            app.Map("/www.modelscope.cn/{**path}", async context =>
-            {
-                var path = context.Request.RouteValues["path"].ToString();
-                context.Response.Redirect("https://www.modelscope.cn/" + path, false);
-                await context.Response.WriteAsJsonAsync(new { path });
-            });
-
             app.Map("/v2/{user}/{repo}/blobs/{digest}", async context =>
             {
                 var digest = context.Request.RouteValues["digest"].ToString();
@@ -63,21 +56,21 @@ namespace Onllama.ModelScope2Registry
                 {
                     try
                     {
-                        if (context.Request.Method.ToUpper() == "GET")
-                        {
-                            Console.WriteLine();
-                            var uri = new Uri(url);
-                            var reqContext = context.DeepClone();
-                            reqContext.Request.Path = uri.AbsolutePath;
-                            var response = await reqContext.ForwardTo(new Uri("https://www.modelscope.cn/")).Send();
-                            context.Response.Headers.TryAdd("X-Forwarder-By", "ModelScope2Registry");
-                            context.Response.Headers.Location = context.Request.Path.Value;
-                            var reStream = context.Response.BodyWriter.AsStream();
-                            await (await response.Content.ReadAsStreamAsync()).CopyToAsync(reStream);
-                        }
+                        if (context.Request.Method.ToUpper() == "HEAD")
+                            context.Response.Headers.ContentLength = LenDict[digest];
                         else
                         {
-                            context.Response.Headers.ContentLength = LenDict[digest];
+                            //context.Response.Headers.TryAdd("X-Forwarder-By", "ModelScope2Registry");
+                            //context.Response.Headers.Location = context.Request.Path.Value;
+
+                            //var uri = new Uri(url);
+                            //var reqContext = context.DeepClone();
+                            //reqContext.Request.Path = uri.AbsolutePath;
+                            //var response = await reqContext.ForwardTo(new Uri("https://www.modelscope.cn/")).Send();
+                            //var reStream = context.Response.BodyWriter.AsStream();
+                            //await (await response.Content.ReadAsStreamAsync()).CopyToAsync(reStream);
+                            context.Response.Redirect(url);
+                            context.Response.StatusCode = 307;
                         }
                     }
                     catch (Exception e)
