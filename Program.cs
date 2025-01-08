@@ -63,9 +63,8 @@ namespace Onllama.ModelScope2Registry
                             //context.Response.Headers.TryAdd("X-Forwarder-By", "ModelScope2Registry");
                             //context.Response.Headers.Location = context.Request.Path.Value;
 
-                            //var uri = new Uri(url);
                             //var reqContext = context.DeepClone();
-                            //reqContext.Request.Path = uri.AbsolutePath;
+                            //reqContext.Request.Path = new Uri(url).AbsolutePath;
                             //var response = await reqContext.ForwardTo(new Uri("https://www.modelscope.cn/")).Send();
                             //var reStream = context.Response.BodyWriter.AsStream();
                             //await (await response.Content.ReadAsStreamAsync()).CopyToAsync(reStream);
