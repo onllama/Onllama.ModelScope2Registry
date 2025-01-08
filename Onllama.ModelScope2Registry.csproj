@@ -6,4 +6,9 @@
     <ImplicitUsings>enable</ImplicitUsings>
   </PropertyGroup>
 
+  <ItemGroup>
+    <PackageReference Include="DeepCloner.Core" Version="0.1.0" />
+    <PackageReference Include="ProxyKit" Version="2.3.4" />
+  </ItemGroup>
+
 </Project>

@@ -1,9 +1,12 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
+using DeepCloner.Core;
+using ProxyKit;
 
 namespace Onllama.ModelScope2Registry
 {
@@ -14,6 +17,7 @@ namespace Onllama.ModelScope2Registry
             var builder = WebApplication.CreateBuilder(args);
             var DigestDict = new Dictionary<string, string>();
             var RedirectDict = new Dictionary<string, string>();
+            var LenDict = new Dictionary<string, int>();
 
             var modelConfig =
                 """
@@ -22,6 +26,9 @@ namespace Onllama.ModelScope2Registry
 
             // Add services to the container.
             builder.Services.AddAuthorization();
+            builder.Services.AddProxy(httpClientBuilder =>
+                httpClientBuilder.ConfigureHttpClient(client =>
+                    client.Timeout = TimeSpan.FromMinutes(5)));
 
             var app = builder.Build();
 
@@ -47,18 +54,40 @@ namespace Onllama.ModelScope2Registry
 
                 if (DigestDict.TryGetValue(digest, out var value))
                 {
+                    context.Response.Headers.Location = context.Request.Path.Value;
+                    context.Response.Headers.ContentLength = Encoding.UTF8.GetByteCount(value);
+                    context.Response.Headers.TryAdd("Content-Type", "application/octet-stream");
                     await context.Response.WriteAsync(value);
                 }
                 else if (RedirectDict.TryGetValue(digest, out var url))
                 {
-                    context.Response.Redirect(url + "?hash=" + digest.Split(":").Last(), false);
-                    context.Response.Headers.AcceptRanges = "bytes";
-                    context.Response.StatusCode = 307;
-                    await context.Response.WriteAsJsonAsync(new { url });
+                    try
+                    {
+                        if (context.Request.Method.ToUpper() == "GET")
+                        {
+                            Console.WriteLine();
+                            var uri = new Uri(url);
+                            var reqContext = context.DeepClone();
+                            reqContext.Request.Path = uri.AbsolutePath;
+                            var response = await reqContext.ForwardTo(new Uri("https://www.modelscope.cn/")).Send();
+                            context.Response.Headers.TryAdd("X-Forwarder-By", "ModelScope2Registry");
+                            context.Response.Headers.Location = context.Request.Path.Value;
+                            var reStream = context.Response.BodyWriter.AsStream();
+                            await (await response.Content.ReadAsStreamAsync()).CopyToAsync(reStream);
+                        }
+                        else
+                        {
+                            context.Response.Headers.ContentLength = LenDict[digest];
+                        }
+                    }
+                    catch (Exception e)
+                    {
+                        Console.WriteLine(e);
+                    }
                 }
                 else
                 {
-                    await context.Response.WriteAsJsonAsync(new {error = "Blob not found"});
+                    await context.Response.WriteAsJsonAsync(new { error = "Blob not found" });
                     context.Response.StatusCode = 404;
                 }
             });
@@ -83,6 +112,7 @@ namespace Onllama.ModelScope2Registry
 
                 var ggufDigest = $"sha256:{ggufFile.Sha256}";
                 RedirectDict.TryAdd(ggufDigest, $"https://www.modelscope.cn/models/{user}/{repo}/resolve/master/{ggufFile.Name}");
+                LenDict.TryAdd(ggufDigest,ggufFile.Size);
                 var layers = new List<object>
                 {
                     new
