@@ -17,7 +17,7 @@ namespace Onllama.ModelScope2Registry
             var builder = WebApplication.CreateBuilder(args);
             var DigestDict = new Dictionary<string, string>();
             var RedirectDict = new Dictionary<string, string>();
-            var LenDict = new Dictionary<string, int>();
+            var LenDict = new Dictionary<string, long>();
 
             var TemplateMapDict = new Dictionary<string, string>();
             var TemplateStrDict = new Dictionary<string, string>();
@@ -30,17 +30,17 @@ namespace Onllama.ModelScope2Registry
 
             foreach (var i in JsonNode
                          .Parse(new HttpClient()
-                             .GetStringAsync("https://cdn.jsdelivr.net/gh/ollama/ollama/template/index.json").Result)
+                             .GetStringAsync("https://fastly.jsdelivr.net/gh/ollama/ollama/template/index.json").Result)
                          ?.AsArray()!)
             {
                 try
                 {
                     var name = i["name"].ToString();
-                    TemplateMapDict.Add(name, i["template"].ToString());
-                    TemplateStrDict.Add(name, new HttpClient()
-                        .GetStringAsync($"https://cdn.jsdelivr.net/gh/ollama/ollama/template/{name}.gotmpl").Result);
-                    ParamsStrDict.Add(name, new HttpClient()
-                        .GetStringAsync($"https://cdn.jsdelivr.net/gh/ollama/ollama/template/{name}.json").Result);
+                    TemplateMapDict.TryAdd(i["template"].ToString(), name);
+                    TemplateStrDict.TryAdd(name, new HttpClient()
+                        .GetStringAsync($"https://fastly.jsdelivr.net/gh/ollama/ollama/template/{name}.gotmpl").Result);
+                    ParamsStrDict.TryAdd(name, new HttpClient()
+                        .GetStringAsync($"https://fastly.jsdelivr.net/gh/ollama/ollama/template/{name}.json").Result);
                 }
                 catch (Exception e)
                 {
@@ -223,7 +223,7 @@ namespace Onllama.ModelScope2Registry
     public class File
     {
         public string CommitMessage { get; set; }
-        public int CommittedDate { get; set; }
+        public long CommittedDate { get; set; }
         public string CommitterName { get; set; }
         public bool InCheck { get; set; }
         public bool IsLFS { get; set; }
@@ -232,7 +232,7 @@ namespace Onllama.ModelScope2Registry
         public string Path { get; set; }
         public string Revision { get; set; }
         public string Sha256 { get; set; }
-        public int Size { get; set; }
+        public long Size { get; set; }
         public string Type { get; set; }
     }
 
@@ -240,11 +240,11 @@ namespace Onllama.ModelScope2Registry
     {
         public string AuthorEmail { get; set; }
         public string AuthorName { get; set; }
-        public int AuthoredDate { get; set; }
-        public int CommittedDate { get; set; }
+        public long AuthoredDate { get; set; }
+        public long CommittedDate { get; set; }
         public string CommitterEmail { get; set; }
         public string CommitterName { get; set; }
-        public int CreatedAt { get; set; }
+        public long CreatedAt { get; set; }
         public string Id { get; set; }
         public string Message { get; set; }
         public List<string> ParentIds { get; set; }
