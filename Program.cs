@@ -1,3 +1,4 @@
+using System.Runtime.Caching;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
@@ -15,7 +16,7 @@ namespace Onllama.ModelScope2Registry
             var RedirectDict = new Dictionary<string, string>();
             var LenDict = new Dictionary<string, long>();
 
-            var TemplateMapDict = new Dictionary<string?, string>();
+            var TemplateMapDict = new Dictionary<string, string>();
             var TemplateStrDict = new Dictionary<string, string>();
             var ParamsStrDict = new Dictionary<string, string>();
 
@@ -117,9 +118,8 @@ namespace Onllama.ModelScope2Registry
                     templateTag = sp.Last();
                 }
 
-                var fileRes = await new HttpClient().GetStringAsync(
-                    $"https://www.modelscope.cn/api/v1/models/{user}/{repo}/repo/files");
-                var modelScope = JsonSerializer.Deserialize<ModelScope>(fileRes);
+                var modelScope = JsonSerializer.Deserialize<ModelScope>(
+                    await GetWithCache($"https://www.modelscope.cn/api/v1/models/{user}/{repo}/repo/files"));
                 var ggufFiles = modelScope.Data.Files.Where(x => x.Name.EndsWith(".gguf") && !x.Name.Contains("-of-"));
                 var ggufFile = tag == "latest"
                     ? ggufFiles.FirstOrDefault(x =>
@@ -151,9 +151,11 @@ namespace Onllama.ModelScope2Registry
                 
                 try
                 {
-                    var ggufRes = await (await new HttpClient().PostAsync("https://www.modelscope.cn/api/v1/rm/fc?Type=model_view",
-                        new StringContent(JsonSerializer.Serialize(new { modelPath = user, modelName = repo, filePath = ggufFile.Name })))).Content.ReadAsStringAsync();
-                    var metadata = JsonNode.Parse(JsonNode.Parse(ggufRes)?["Data"]?["metadata"]?.ToString() ?? string.Empty);
+                    var metadata = JsonNode.Parse(JsonNode.Parse(await PostWithCache(
+                            "https://www.modelscope.cn/api/v1/rm/fc?Type=model_view",
+                            JsonSerializer.Serialize(new
+                                {modelPath = user, modelName = repo, filePath = ggufFile.Name})))?
+                        ["Data"]?["metadata"]?.ToString() ?? string.Empty);
 
                     if (metadata != null)
                     {
@@ -220,6 +222,30 @@ namespace Onllama.ModelScope2Registry
             });
 
             app.Run();
+        }
+
+        public static async Task<string> GetWithCache(string key, int minutes = 15)
+        {
+            if (MemoryCache.Default.Contains("GET:" + key))
+                return MemoryCache.Default.Get("GET:" + key).ToString() ??
+                       await new HttpClient().GetStringAsync(key);
+
+            var stringAsync = await new HttpClient().GetStringAsync(key);
+            MemoryCache.Default.Add("GET:" + key, stringAsync, DateTimeOffset.Now.AddMinutes(minutes));
+            return stringAsync;
+        }
+
+        public static async Task<string> PostWithCache(string key, string body, int minutes = 15)
+        {
+            if (MemoryCache.Default.Contains("POST:" + key + ":" + body))
+                return MemoryCache.Default.Get("POST:" + key + ":" + body).ToString() ??
+                       await (await new HttpClient().PostAsync(key, new StringContent(body))).Content
+                           .ReadAsStringAsync();
+
+            var stringAsync = await (await new HttpClient().PostAsync(key, new StringContent(body))).Content
+                .ReadAsStringAsync();
+            MemoryCache.Default.Add("POST:" + key + ":" + body, stringAsync, DateTimeOffset.Now.AddMinutes(minutes));
+            return stringAsync;
         }
     }
 
