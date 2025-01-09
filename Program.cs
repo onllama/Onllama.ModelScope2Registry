@@ -121,7 +121,7 @@ namespace Onllama.ModelScope2Registry
                 var modelScope = JsonSerializer.Deserialize<ModelScope>(
                     await GetWithCache($"https://www.modelscope.cn/api/v1/models/{user}/{repo}/repo/files"));
                 var ggufFiles = modelScope.Data.Files.Where(x => x.Name.EndsWith(".gguf") && !x.Name.Contains("-of-"));
-                var ggufFile = tag == "latest"
+                var ggufFile = tag != "latest"
                     ? ggufFiles.FirstOrDefault(x =>
                         x.Name.Split("-").Last().Split('.').First().ToUpper() == tag.ToUpper())
                     : ggufFiles.FirstOrDefault(x =>
