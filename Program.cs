@@ -12,18 +12,16 @@ namespace Onllama.ModelScope2Registry
         public static void Main(string[] args)
         {
             var builder = WebApplication.CreateBuilder(args);
-            var DigestDict = new Dictionary<string, string>();
-            var RedirectDict = new Dictionary<string, string>();
-            var LenDict = new Dictionary<string, long>();
+            var digestDict = new Dictionary<string, string>();
+            var redirectDict = new Dictionary<string, string>();
+            var lenDict = new Dictionary<string, long>();
 
-            var TemplateMapDict = new Dictionary<string, string>();
-            var TemplateStrDict = new Dictionary<string, string>();
-            var ParamsStrDict = new Dictionary<string, string>();
+            var templateMapDict = new Dictionary<string, string>();
+            var templateStrDict = new Dictionary<string, string>();
+            var paramsStrDict = new Dictionary<string, string>();
 
-            var modelConfig =
-                """
-                {"model_format":"gguf","model_family":"<@MODEL>","model_families":["<@MODEL>"],"model_type":"<@SIZE>","file_type":"unknown","architecture":"amd64","os":"linux","rootfs":{"type":"layers","diff_ids":[]}}
-                """;
+            var modelConfig = new HttpClient()
+                .GetStringAsync("https://raw.githubusercontent.com/onllama/templates/refs/heads/main/config.json").Result;
 
             Parallel.ForEach(JsonNode.Parse(new HttpClient()
                     .GetStringAsync("https://fastly.jsdelivr.net/gh/ollama/ollama/template/index.json").Result)
@@ -32,10 +30,10 @@ namespace Onllama.ModelScope2Registry
                 try
                 {
                     var name = i?["name"]?.ToString() ?? string.Empty;
-                    TemplateMapDict.TryAdd(i["template"]?.ToString().Trim(), name);
-                    TemplateStrDict.TryAdd(name, new HttpClient()
+                    templateMapDict.TryAdd(i["template"]?.ToString().Trim(), name);
+                    templateStrDict.TryAdd(name, new HttpClient()
                         .GetStringAsync($"https://fastly.jsdelivr.net/gh/ollama/ollama/template/{name}.gotmpl").Result);
-                    ParamsStrDict.TryAdd(name, new HttpClient()
+                    paramsStrDict.TryAdd(name, new HttpClient()
                         .GetStringAsync($"https://fastly.jsdelivr.net/gh/ollama/ollama/template/{name}.json").Result);
                 }
                 catch (Exception e)
@@ -51,10 +49,10 @@ namespace Onllama.ModelScope2Registry
                 try
                 {
                     var name = i?["name"]?.ToString() ?? string.Empty;
-                    TemplateMapDict.TryAdd(i["template"]?.ToString().Trim(), name);
-                    TemplateStrDict.TryAdd(name, new HttpClient()
+                    templateMapDict.TryAdd(i["template"]?.ToString().Trim(), name);
+                    templateStrDict.TryAdd(name, new HttpClient()
                         .GetStringAsync($"https://fastly.jsdelivr.net/gh/onllama/templates/{name}.gotmpl").Result);
-                    ParamsStrDict.TryAdd(name, new HttpClient()
+                    paramsStrDict.TryAdd(name, new HttpClient()
                         .GetStringAsync($"https://fastly.jsdelivr.net/gh/onllama/templates/{name}.json").Result);
                 }
                 catch (Exception e)
@@ -84,19 +82,19 @@ namespace Onllama.ModelScope2Registry
             {
                 var digest = context.Request.RouteValues["digest"].ToString();
 
-                if (DigestDict.TryGetValue(digest, out var value))
+                if (digestDict.TryGetValue(digest, out var value))
                 {
                     context.Response.Headers.Location = context.Request.Path.Value;
                     context.Response.Headers.ContentLength = Encoding.UTF8.GetByteCount(value);
                     context.Response.Headers.TryAdd("Content-Type", "application/octet-stream");
                     if (context.Request.Method.ToUpper() != "HEAD") await context.Response.WriteAsync(value);
                 }
-                else if (RedirectDict.TryGetValue(digest, out var url))
+                else if (redirectDict.TryGetValue(digest, out var url))
                 {
                     try
                     {
                         if (context.Request.Method.ToUpper() == "HEAD")
-                            context.Response.Headers.ContentLength = LenDict[digest];
+                            context.Response.Headers.ContentLength = lenDict[digest];
                         else
                         {
                             //context.Response.Headers.TryAdd("X-Forwarder-By", "ModelScope2Registry");
@@ -158,8 +156,8 @@ namespace Onllama.ModelScope2Registry
                     }
 
                     var ggufDigest = $"sha256:{gguf.Sha256}";
-                    RedirectDict.TryAdd(ggufDigest, $"https://www.modelscope.cn/models/{user}/{repo}/resolve/master/{gguf.Name}");
-                    LenDict.TryAdd(ggufDigest, gguf.Size);
+                    redirectDict.TryAdd(ggufDigest, $"https://www.modelscope.cn/models/{user}/{repo}/resolve/master/{gguf.Name}");
+                    lenDict.TryAdd(ggufDigest, gguf.Size);
 
                     var config = new object();
                     var layers = new List<object>
@@ -189,7 +187,7 @@ namespace Onllama.ModelScope2Registry
                             var configDigest =
                                 $"sha256:{BitConverter.ToString(SHA256.HashData(configByte)).Replace("-", string.Empty).ToLower()}";
                             var configSize = configByte.Length;
-                            DigestDict.TryAdd(configDigest, configStr);
+                            digestDict.TryAdd(configDigest, configStr);
 
                             config = new
                             {
@@ -198,15 +196,15 @@ namespace Onllama.ModelScope2Registry
                                 digest = configDigest
                             };
 
-                            if (metadata["tokenizer.chat_template"] != null && TemplateMapDict.TryGetValue(
-                                    metadata["tokenizer.chat_template"]?.ToString().Trim() ?? string.Empty, out templateName) || TemplateStrDict.ContainsKey(templateTag))
+                            if (metadata["tokenizer.chat_template"] != null && templateMapDict.TryGetValue(
+                                    metadata["tokenizer.chat_template"]?.ToString().Trim() ?? string.Empty, out templateName) || templateStrDict.ContainsKey(templateTag))
                             {
                                 templateName ??= templateTag;
-                                if (TemplateStrDict.TryGetValue(templateName, out var templateStr))
+                                if (templateStrDict.TryGetValue(templateName, out var templateStr))
                                 {
                                     var templateByte = Encoding.UTF8.GetBytes(templateStr);
                                     var templateDigest = $"sha256:{BitConverter.ToString(SHA256.HashData(templateByte)).Replace("-", string.Empty).ToLower()}";
-                                    DigestDict.TryAdd(templateDigest, templateStr);
+                                    digestDict.TryAdd(templateDigest, templateStr);
                                     layers.Add(new
                                     {
                                         mediaType = "application/vnd.ollama.image.template",
@@ -215,11 +213,11 @@ namespace Onllama.ModelScope2Registry
                                     });
                                 }
 
-                                if (ParamsStrDict.TryGetValue(templateName, out var paramsStr))
+                                if (paramsStrDict.TryGetValue(templateName, out var paramsStr))
                                 {
                                     var paramsByte = Encoding.UTF8.GetBytes(paramsStr);
                                     var paramsDigest = $"sha256:{BitConverter.ToString(SHA256.HashData(paramsByte)).Replace("-", string.Empty).ToLower()}";
-                                    DigestDict.TryAdd(paramsDigest, paramsStr);
+                                    digestDict.TryAdd(paramsDigest, paramsStr);
                                     layers.Add(new
                                     {
                                         mediaType = "application/vnd.ollama.image.params",
