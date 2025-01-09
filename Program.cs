@@ -19,10 +19,34 @@ namespace Onllama.ModelScope2Registry
             var RedirectDict = new Dictionary<string, string>();
             var LenDict = new Dictionary<string, int>();
 
+            var TemplateMapDict = new Dictionary<string, string>();
+            var TemplateStrDict = new Dictionary<string, string>();
+            var ParamsStrDict = new Dictionary<string, string>();
+
             var modelConfig =
                 """
                 {"model_format":"gguf","model_family":"<@MODEL>","model_families":["<@MODEL>"],"model_type":"<@SIZE>","file_type":"unknown","architecture":"amd64","os":"linux","rootfs":{"type":"layers","diff_ids":[]}}
                 """;
+
+            foreach (var i in JsonNode
+                         .Parse(new HttpClient()
+                             .GetStringAsync("https://cdn.jsdelivr.net/gh/ollama/ollama/template/index.json").Result)
+                         ?.AsArray()!)
+            {
+                try
+                {
+                    var name = i["name"].ToString();
+                    TemplateMapDict.Add(name, i["template"].ToString());
+                    TemplateStrDict.Add(name, new HttpClient()
+                        .GetStringAsync($"https://cdn.jsdelivr.net/gh/ollama/ollama/template/{name}.gotmpl").Result);
+                    ParamsStrDict.Add(name, new HttpClient()
+                        .GetStringAsync($"https://cdn.jsdelivr.net/gh/ollama/ollama/template/{name}.json").Result);
+                }
+                catch (Exception e)
+                {
+                    Console.WriteLine(e);
+                }
+            }
 
             // Add services to the container.
             builder.Services.AddAuthorization();
@@ -50,7 +74,7 @@ namespace Onllama.ModelScope2Registry
                     context.Response.Headers.Location = context.Request.Path.Value;
                     context.Response.Headers.ContentLength = Encoding.UTF8.GetByteCount(value);
                     context.Response.Headers.TryAdd("Content-Type", "application/octet-stream");
-                    await context.Response.WriteAsync(value);
+                    if (context.Request.Method.ToUpper() != "HEAD") await context.Response.WriteAsync(value);
                 }
                 else if (RedirectDict.TryGetValue(digest, out var url))
                 {
@@ -140,20 +164,35 @@ namespace Onllama.ModelScope2Registry
                         };
 
 
-                        //if (metadata["tokenizer.chat_template"] != null)
-                        //{
-                        //    var templateStr = metadata["tokenizer.chat_template"]?.ToString() ?? string.Empty;
-                        //    var templateByte = Encoding.UTF8.GetBytes(templateStr);
-                        //    var templateDigest = $"sha256:{BitConverter.ToString(SHA256.HashData(templateByte)).Replace("-", string.Empty).ToLower()}";
-                        //    var templateSize = templateByte.Length;
-                        //    DigestDict.TryAdd(templateDigest, templateStr);
-                        //    layers.Add(new
-                        //    {
-                        //        mediaType = "application/vnd.ollama.image.template",
-                        //        size = templateSize,
-                        //        digest = templateDigest
-                        //    });
-                        //}
+                        if (metadata["tokenizer.chat_template"] != null && TemplateMapDict.TryGetValue(
+                                metadata["tokenizer.chat_template"]?.ToString() ?? string.Empty, out var templateName))
+                        {
+                            if (TemplateStrDict.TryGetValue(templateName, out var templateStr))
+                            {
+                                var templateByte = Encoding.UTF8.GetBytes(templateStr);
+                                var templateDigest = $"sha256:{BitConverter.ToString(SHA256.HashData(templateByte)).Replace("-", string.Empty).ToLower()}";
+                                DigestDict.TryAdd(templateDigest, templateStr);
+                                layers.Add(new
+                                {
+                                    mediaType = "application/vnd.ollama.image.template",
+                                    size = templateByte.Length,
+                                    digest = templateDigest
+                                });
+                            }
+
+                            if (ParamsStrDict.TryGetValue(templateName, out var paramsStr))
+                            {
+                                var paramsByte = Encoding.UTF8.GetBytes(paramsStr);
+                                var paramsDigest = $"sha256:{BitConverter.ToString(SHA256.HashData(paramsByte)).Replace("-", string.Empty).ToLower()}";
+                                DigestDict.TryAdd(paramsDigest, paramsStr);
+                                layers.Add(new
+                                {
+                                    mediaType = "application/vnd.ollama.image.params",
+                                    size = paramsByte.Length,
+                                    digest = paramsDigest
+                                });
+                            }
+                        }
                     }
                 }
                 catch (Exception e)
