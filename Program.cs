@@ -1,11 +1,7 @@
-using System;
-using System.Collections.Generic;
-using System.IO;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
-using DeepCloner.Core;
 using ProxyKit;
 
 namespace Onllama.ModelScope2Registry
@@ -19,7 +15,7 @@ namespace Onllama.ModelScope2Registry
             var RedirectDict = new Dictionary<string, string>();
             var LenDict = new Dictionary<string, long>();
 
-            var TemplateMapDict = new Dictionary<string, string>();
+            var TemplateMapDict = new Dictionary<string?, string>();
             var TemplateStrDict = new Dictionary<string, string>();
             var ParamsStrDict = new Dictionary<string, string>();
 
@@ -28,15 +24,14 @@ namespace Onllama.ModelScope2Registry
                 {"model_format":"gguf","model_family":"<@MODEL>","model_families":["<@MODEL>"],"model_type":"<@SIZE>","file_type":"unknown","architecture":"amd64","os":"linux","rootfs":{"type":"layers","diff_ids":[]}}
                 """;
 
-            foreach (var i in JsonNode
-                         .Parse(new HttpClient()
-                             .GetStringAsync("https://fastly.jsdelivr.net/gh/ollama/ollama/template/index.json").Result)
-                         ?.AsArray()!)
+            Parallel.ForEach(JsonNode.Parse(new HttpClient()
+                    .GetStringAsync("https://fastly.jsdelivr.net/gh/ollama/ollama/template/index.json").Result)
+                ?.AsArray() ?? [], i =>
             {
                 try
                 {
-                    var name = i["name"].ToString();
-                    TemplateMapDict.TryAdd(i["template"].ToString(), name);
+                    var name = i?["name"]?.ToString() ?? string.Empty;
+                    TemplateMapDict.TryAdd(i["template"]?.ToString(), name);
                     TemplateStrDict.TryAdd(name, new HttpClient()
                         .GetStringAsync($"https://fastly.jsdelivr.net/gh/ollama/ollama/template/{name}.gotmpl").Result);
                     ParamsStrDict.TryAdd(name, new HttpClient()
@@ -46,7 +41,7 @@ namespace Onllama.ModelScope2Registry
                 {
                     Console.WriteLine(e);
                 }
-            }
+            });
 
             // Add services to the container.
             builder.Services.AddAuthorization();
@@ -74,7 +69,7 @@ namespace Onllama.ModelScope2Registry
                     context.Response.Headers.Location = context.Request.Path.Value;
                     context.Response.Headers.ContentLength = Encoding.UTF8.GetByteCount(value);
                     context.Response.Headers.TryAdd("Content-Type", "application/octet-stream");
-                    if (context.Request.Method.ToUpper() != "HEAD") await context.Response.WriteAsync(value);
+                    await context.Response.WriteAsync(value);
                 }
                 else if (RedirectDict.TryGetValue(digest, out var url))
                 {
@@ -114,11 +109,24 @@ namespace Onllama.ModelScope2Registry
                 var repo = context.Request.RouteValues["repo"].ToString();
                 var tag = context.Request.RouteValues["tag"].ToString();
 
+                var templateTag = string.Empty;
+                if (tag != null && tag.Contains("--"))
+                {
+                    var sp = tag.Split("--");
+                    tag = sp.First();
+                    templateTag = sp.Last();
+                }
+
                 var fileRes = await new HttpClient().GetStringAsync(
                     $"https://www.modelscope.cn/api/v1/models/{user}/{repo}/repo/files");
                 var modelScope = JsonSerializer.Deserialize<ModelScope>(fileRes);
                 var ggufFiles = modelScope.Data.Files.Where(x => x.Name.EndsWith(".gguf") && !x.Name.Contains("-of-"));
-                var ggufFile = ggufFiles.FirstOrDefault(x => x.Name.Split("-").Last().Split('.').First().ToUpper() == tag.ToUpper());
+                var ggufFile = tag == "latest"
+                    ? ggufFiles.FirstOrDefault(x =>
+                        x.Name.Split("-").Last().Split('.').First().ToUpper() == tag.ToUpper())
+                    : ggufFiles.FirstOrDefault(x =>
+                        x.Name.Split("-").Last().Split('.').First().ToUpper() is "Q4_K_M" or "Q4_0" or "Q8_0" );
+
                 if (ggufFile == null)
                 {
                     await context.Response.WriteAsJsonAsync(new { error = "Model not found" });
@@ -129,6 +137,8 @@ namespace Onllama.ModelScope2Registry
                 var ggufDigest = $"sha256:{ggufFile.Sha256}";
                 RedirectDict.TryAdd(ggufDigest, $"https://www.modelscope.cn/models/{user}/{repo}/resolve/master/{ggufFile.Name}");
                 LenDict.TryAdd(ggufDigest,ggufFile.Size);
+                
+                var config = new object();
                 var layers = new List<object>
                 {
                     new
@@ -138,8 +148,7 @@ namespace Onllama.ModelScope2Registry
                         digest = ggufDigest
                     }
                 };
-                var config = new object();
-
+                
                 try
                 {
                     var ggufRes = await (await new HttpClient().PostAsync("https://www.modelscope.cn/api/v1/rm/fc?Type=model_view",
@@ -148,6 +157,7 @@ namespace Onllama.ModelScope2Registry
 
                     if (metadata != null)
                     {
+                        var templateName = string.Empty;
                         var configStr = modelConfig.Replace("<@MODEL>", metadata["general.architecture"]?.ToString() ?? string.Empty)
                             .Replace("<@SIZE>", metadata["general.size_label"]?.ToString() ?? string.Empty);
                         var configByte = Encoding.UTF8.GetBytes(configStr);
@@ -163,10 +173,10 @@ namespace Onllama.ModelScope2Registry
                             digest = configDigest
                         };
 
-
                         if (metadata["tokenizer.chat_template"] != null && TemplateMapDict.TryGetValue(
-                                metadata["tokenizer.chat_template"]?.ToString() ?? string.Empty, out var templateName))
+                                metadata["tokenizer.chat_template"]?.ToString() ?? string.Empty, out templateName) || TemplateStrDict.ContainsKey(templateTag))
                         {
+                            templateName ??= templateTag;
                             if (TemplateStrDict.TryGetValue(templateName, out var templateStr))
                             {
                                 var templateByte = Encoding.UTF8.GetBytes(templateStr);
