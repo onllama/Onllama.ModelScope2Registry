@@ -32,11 +32,30 @@ namespace Onllama.ModelScope2Registry
                 try
                 {
                     var name = i?["name"]?.ToString() ?? string.Empty;
-                    TemplateMapDict.TryAdd(i["template"]?.ToString(), name);
+                    TemplateMapDict.TryAdd(i["template"]?.ToString().Trim(), name);
                     TemplateStrDict.TryAdd(name, new HttpClient()
                         .GetStringAsync($"https://fastly.jsdelivr.net/gh/ollama/ollama/template/{name}.gotmpl").Result);
                     ParamsStrDict.TryAdd(name, new HttpClient()
                         .GetStringAsync($"https://fastly.jsdelivr.net/gh/ollama/ollama/template/{name}.json").Result);
+                }
+                catch (Exception e)
+                {
+                    Console.WriteLine(e);
+                }
+            });
+
+            Parallel.ForEach(JsonNode.Parse(new HttpClient()
+                    .GetStringAsync("https://fastly.jsdelivr.net/gh/onllama/templates/index.json").Result)
+                ?.AsArray() ?? [], i =>
+            {
+                try
+                {
+                    var name = i?["name"]?.ToString() ?? string.Empty;
+                    TemplateMapDict.TryAdd(i["template"]?.ToString().Trim(), name);
+                    TemplateStrDict.TryAdd(name, new HttpClient()
+                        .GetStringAsync($"https://fastly.jsdelivr.net/gh/onllama/templates/{name}.gotmpl").Result);
+                    ParamsStrDict.TryAdd(name, new HttpClient()
+                        .GetStringAsync($"https://fastly.jsdelivr.net/gh/onllama/templates/{name}.json").Result);
                 }
                 catch (Exception e)
                 {
@@ -70,7 +89,7 @@ namespace Onllama.ModelScope2Registry
                     context.Response.Headers.Location = context.Request.Path.Value;
                     context.Response.Headers.ContentLength = Encoding.UTF8.GetByteCount(value);
                     context.Response.Headers.TryAdd("Content-Type", "application/octet-stream");
-                    await context.Response.WriteAsync(value);
+                    if (context.Request.Method.ToUpper() != "HEAD") await context.Response.WriteAsync(value);
                 }
                 else if (RedirectDict.TryGetValue(digest, out var url))
                 {
@@ -176,7 +195,7 @@ namespace Onllama.ModelScope2Registry
                         };
 
                         if (metadata["tokenizer.chat_template"] != null && TemplateMapDict.TryGetValue(
-                                metadata["tokenizer.chat_template"]?.ToString() ?? string.Empty, out templateName) || TemplateStrDict.ContainsKey(templateTag))
+                                metadata["tokenizer.chat_template"]?.ToString().Trim() ?? string.Empty, out templateName) || TemplateStrDict.ContainsKey(templateTag))
                         {
                             templateName ??= templateTag;
                             if (TemplateStrDict.TryGetValue(templateName, out var templateStr))
