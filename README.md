@@ -20,4 +20,4 @@ ollama run modelscope2ollama-registry.azurewebsites.net/qwen/Qwen2.5-7B-Instruct
 ```
 ollama run modelscope2ollama-registry.azurewebsites.net/qwen/Qwen2.5-7B-Instruct-gguf:Q8_0--qwen2
 ```
-你可以查看 [Ollama 官方支持的模型模板](https://github.com/ollama/ollama/tree/main/template)，和[我们支持的模型模板](https://github.com/ollama/ollama/tree/main/template)，以手动指定更加合适的模板。
+你可以查看 [Ollama 官方支持的模型模板](https://github.com/ollama/ollama/tree/main/template)，和 [我们支持的模型模板](https://github.com/onllama/templates)，以手动指定更加合适的模板。
