@@ -16,8 +16,8 @@ ollama run modelscope2ollama-registry.azurewebsites.net/qwen/Qwen2.5-7B-Instruct
 
 仓库中需要包含带有正确格式文件名的 GGUF 文件（模型名称以“-”分隔，最后一位需要为有效的量化类型，形如：model-quant.gguf），暂不支持包含类似 `0000x-of-0000x` 的切分后的模型。
 ### 指定模板
-若对话模板未能正确识别或识别有误，你可以这样指定模型模板：
+若对话模板未能正确识别或识别有误导致对话输出异常，你可以尝试这样指定模型的对话模板：
 ```
 ollama run modelscope2ollama-registry.azurewebsites.net/qwen/Qwen2.5-7B-Instruct-gguf:Q8_0--qwen2
 ```
-你可以查看 [Ollama 官方支持的模型模板](https://github.com/ollama/ollama/tree/main/template)，和 [我们支持的模型模板](https://github.com/onllama/templates)，以手动指定更加合适的模板。
+你可以查看 [Ollama 官方支持的模板](https://github.com/ollama/ollama/tree/main/template)，和 [我们支持的模板](https://github.com/onllama/templates)，以手动指定更加合适的模板。
