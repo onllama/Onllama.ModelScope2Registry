@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.Runtime.Caching;
 using System.Security.Cryptography;
 using System.Text;
@@ -16,9 +17,9 @@ namespace Onllama.ModelScope2Registry
             var redirectDict = new Dictionary<string, string>();
             var lenDict = new Dictionary<string, long>();
 
-            var templateMapDict = new Dictionary<string, string>();
-            var templateStrDict = new Dictionary<string, string>();
-            var paramsStrDict = new Dictionary<string, string>();
+            var templateMapDict = new ConcurrentDictionary<string, string>();
+            var templateStrDict = new ConcurrentDictionary<string, string>();
+            var paramsStrDict = new ConcurrentDictionary<string, string>();
 
             var modelConfig = new HttpClient()
                 .GetStringAsync("https://raw.githubusercontent.com/onllama/templates/refs/heads/main/config.json").Result;
