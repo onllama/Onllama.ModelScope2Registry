@@ -13,9 +13,9 @@ namespace Onllama.ModelScope2Registry
         public static void Main(string[] args)
         {
             var builder = WebApplication.CreateBuilder(args);
-            var digestDict = new Dictionary<string, string>();
-            var redirectDict = new Dictionary<string, string>();
-            var lenDict = new Dictionary<string, long>();
+            var digestDict = new ConcurrentDictionary<string, string>();
+            var redirectDict = new ConcurrentDictionary<string, string>();
+            var lenDict = new ConcurrentDictionary<string, long>();
 
             var templateMapDict = new ConcurrentDictionary<string, string>();
             var templateStrDict = new ConcurrentDictionary<string, string>();
