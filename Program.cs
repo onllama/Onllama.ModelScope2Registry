@@ -4,6 +4,7 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
+using System.Xml.Linq;
 using ProxyKit;
 
 namespace Onllama.ModelScope2Registry
@@ -22,7 +23,7 @@ namespace Onllama.ModelScope2Registry
             var paramsStrDict = new ConcurrentDictionary<string, string>();
 
             var modelConfig = new HttpClient()
-                .GetStringAsync("https://fastly.jsdelivr.net/gh/onllama/templates/config.json").Result;
+                .GetStringAsync("https://raw.githubusercontent.com/onllama/templates/refs/heads/main/config.json").Result;
 
             Parallel.ForEach(JsonNode.Parse(new HttpClient()
                     .GetStringAsync("https://fastly.jsdelivr.net/gh/ollama/ollama/template/index.json").Result)
@@ -186,7 +187,8 @@ namespace Onllama.ModelScope2Registry
                         {
                             var templateName = string.Empty;
                             var configStr = modelConfig.Replace("<@MODEL>", metadata["general.architecture"]?.ToString() ?? string.Empty)
-                                .Replace("<@SIZE>", metadata["general.size_label"]?.ToString() ?? string.Empty);
+                                .Replace("<@SIZE>", metadata["general.size_label"]?.ToString() ?? string.Empty)
+                                .Replace("<@QUANT>", gguf.Name.Split("-").Last().Split('.').First().ToUpper());
                             var configByte = Encoding.UTF8.GetBytes(configStr);
                             var configDigest =
                                 $"sha256:{BitConverter.ToString(SHA256.HashData(configByte)).Replace("-", string.Empty).ToLower()}";
