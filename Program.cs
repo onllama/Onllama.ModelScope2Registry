@@ -4,7 +4,6 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
-using System.Xml.Linq;
 using ProxyKit;
 
 namespace Onllama.ModelScope2Registry
@@ -165,7 +164,7 @@ namespace Onllama.ModelScope2Registry
                         $"https://www.modelscope.cn/models/{user}/{repo}/resolve/master/{gguf.Name}");
                     lenDict.TryAdd(ggufDigest, gguf.Size);
 
-                    var config = new object();
+                    object config;
                     var layers = new List<object>
                     {
                         new
@@ -236,11 +235,9 @@ namespace Onllama.ModelScope2Registry
                                     });
                                 }
                             }
-                            else
-                            {
-                                throw new Exception("Template Not Found");
-                            }
+                            else throw new Exception("Template Not Found");
                         }
+                        else throw new Exception("Metadata Not Found");
                     }
                     catch (Exception e)
                     {
