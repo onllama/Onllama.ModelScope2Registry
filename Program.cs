@@ -155,13 +155,14 @@ namespace Onllama.ModelScope2Registry
                     if (gguf == null)
                     {
                         await context.Response.WriteAsJsonAsync(new
-                        { errors = new { code = "MANIFEST_UNKNOWN", message = "Manifest Unknown" } });
+                            {errors = new {code = "MANIFEST_UNKNOWN", message = "Manifest Unknown"}});
                         context.Response.StatusCode = 404;
                         return;
                     }
 
                     var ggufDigest = $"sha256:{gguf.Sha256}";
-                    redirectDict.TryAdd(ggufDigest, $"https://www.modelscope.cn/models/{user}/{repo}/resolve/master/{gguf.Name}");
+                    redirectDict.TryAdd(ggufDigest,
+                        $"https://www.modelscope.cn/models/{user}/{repo}/resolve/master/{gguf.Name}");
                     lenDict.TryAdd(ggufDigest, gguf.Size);
 
                     var config = new object();
@@ -180,36 +181,38 @@ namespace Onllama.ModelScope2Registry
                         var metadata = JsonNode.Parse(JsonNode.Parse(await PostWithCache(
                                 "https://www.modelscope.cn/api/v1/rm/fc?Type=model_view",
                                 JsonSerializer.Serialize(new
-                                { modelPath = user, modelName = repo, filePath = gguf.Name })))?
+                                    {modelPath = user, modelName = repo, filePath = gguf.Name})))?
                             ["Data"]?["metadata"]?.ToString() ?? string.Empty);
 
                         if (metadata != null)
                         {
                             var templateName = string.Empty;
-                            var configStr = modelConfig.Replace("<@MODEL>", metadata["general.architecture"]?.ToString() ?? string.Empty)
+                            var configStr = modelConfig.Replace("<@MODEL>",
+                                    metadata["general.architecture"]?.ToString() ?? string.Empty)
                                 .Replace("<@SIZE>", metadata["general.size_label"]?.ToString() ?? string.Empty)
                                 .Replace("<@QUANT>", gguf.Name.Split("-").Last().Split('.').First().ToUpper());
                             var configByte = Encoding.UTF8.GetBytes(configStr);
                             var configDigest =
                                 $"sha256:{BitConverter.ToString(SHA256.HashData(configByte)).Replace("-", string.Empty).ToLower()}";
-                            var configSize = configByte.Length;
                             digestDict.TryAdd(configDigest, configStr);
 
                             config = new
                             {
                                 mediaType = "application/vnd.docker.container.image.v1+json",
-                                size = configSize,
+                                size = configByte.Length,
                                 digest = configDigest
                             };
 
                             if (metadata["tokenizer.chat_template"] != null && templateMapDict.TryGetValue(
-                                    metadata["tokenizer.chat_template"]?.ToString().Trim() ?? string.Empty, out templateName) || templateStrDict.ContainsKey(templateTag))
+                                    metadata["tokenizer.chat_template"]?.ToString().Trim() ?? string.Empty,
+                                    out templateName) || templateStrDict.ContainsKey(templateTag))
                             {
                                 templateName ??= templateTag;
                                 if (templateStrDict.TryGetValue(templateName, out var templateStr))
                                 {
                                     var templateByte = Encoding.UTF8.GetBytes(templateStr);
-                                    var templateDigest = $"sha256:{BitConverter.ToString(SHA256.HashData(templateByte)).Replace("-", string.Empty).ToLower()}";
+                                    var templateDigest =
+                                        $"sha256:{BitConverter.ToString(SHA256.HashData(templateByte)).Replace("-", string.Empty).ToLower()}";
                                     digestDict.TryAdd(templateDigest, templateStr);
                                     layers.Add(new
                                     {
@@ -222,7 +225,8 @@ namespace Onllama.ModelScope2Registry
                                 if (paramsStrDict.TryGetValue(templateName, out var paramsStr))
                                 {
                                     var paramsByte = Encoding.UTF8.GetBytes(paramsStr);
-                                    var paramsDigest = $"sha256:{BitConverter.ToString(SHA256.HashData(paramsByte)).Replace("-", string.Empty).ToLower()}";
+                                    var paramsDigest =
+                                        $"sha256:{BitConverter.ToString(SHA256.HashData(paramsByte)).Replace("-", string.Empty).ToLower()}";
                                     digestDict.TryAdd(paramsDigest, paramsStr);
                                     layers.Add(new
                                     {
@@ -232,10 +236,28 @@ namespace Onllama.ModelScope2Registry
                                     });
                                 }
                             }
+                            else
+                            {
+                                throw new Exception("Template Not Found");
+                            }
                         }
                     }
                     catch (Exception e)
                     {
+                        var configStr = modelConfig.Replace("<@MODEL>", "unknown")
+                            .Replace("<@SIZE>", "unknown")
+                            .Replace("<@QUANT>", gguf.Name.Split("-").Last().Split('.').First().ToUpper());
+                        var configByte = Encoding.UTF8.GetBytes(configStr);
+                        var configDigest =
+                            $"sha256:{BitConverter.ToString(SHA256.HashData(configByte)).Replace("-", string.Empty).ToLower()}";
+                        digestDict.TryAdd(configDigest, configStr);
+
+                        config = new
+                        {
+                            mediaType = "application/vnd.docker.container.image.v1+json",
+                            size = configByte.Length,
+                            digest = configDigest
+                        };
                         Console.WriteLine(e);
                     }
 
@@ -251,7 +273,7 @@ namespace Onllama.ModelScope2Registry
                 {
                     Console.WriteLine(e);
                     await context.Response.WriteAsJsonAsync(new
-                        { errors = new { code = "MANIFEST_UNKNOWN", message = e.Message } });
+                        {errors = new {code = "MANIFEST_UNKNOWN", message = e.Message}});
                     context.Response.StatusCode = 404;
                 }
             });
