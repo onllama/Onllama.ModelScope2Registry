@@ -22,7 +22,7 @@ namespace Onllama.ModelScope2Registry
             var paramsStrDict = new ConcurrentDictionary<string, string>();
 
             var modelConfig = new HttpClient()
-                .GetStringAsync("https://raw.githubusercontent.com/onllama/templates/refs/heads/main/config.json").Result;
+                .GetStringAsync("https://fastly.jsdelivr.net/gh/onllama/templates/config.json").Result;
 
             Parallel.ForEach(JsonNode.Parse(new HttpClient()
                     .GetStringAsync("https://fastly.jsdelivr.net/gh/ollama/ollama/template/index.json").Result)
@@ -44,7 +44,7 @@ namespace Onllama.ModelScope2Registry
             });
 
             Parallel.ForEach(JsonNode.Parse(new HttpClient()
-                    .GetStringAsync("https://raw.githubusercontent.com/onllama/templates/refs/heads/main/index.json").Result)
+                    .GetStringAsync("https://fastly.jsdelivr.net/gh/onllama/templates/index.json").Result)
                 ?.AsArray() ?? [], i =>
             {
                 try
@@ -141,12 +141,15 @@ namespace Onllama.ModelScope2Registry
 
                     var modelScope = JsonSerializer.Deserialize<ModelScope>(
                         await GetWithCache($"https://www.modelscope.cn/api/v1/models/{user}/{repo}/repo/files"));
-                    var files = modelScope.Data.Files.Where(x => x.Name.EndsWith(".gguf") && !x.Name.Contains("-of-"));
+                    var files = modelScope.Data.Files.OrderBy(x => x.Size)
+                        .Where(x => x.Name.EndsWith(".gguf") && !x.Name.Contains("-of-"));
                     var gguf = tag != "latest"
                         ? files.FirstOrDefault(x =>
                             x.Name.Split("-").Last().Split('.').First().ToUpper() == tag.ToUpper())
-                        : files.OrderBy(x => x.Size).FirstOrDefault(x =>
-                            x.Name.Split("-").Last().Split('.').First().ToUpper() is "Q4_K_M" or "Q4_0" or "Q8_0");
+                        : files.FirstOrDefault(x =>
+                              x.Name.Split("-").Last().Split('.').First().ToUpper() is "Q4_K_M" or "Q8_0") ??
+                          files.FirstOrDefault(x =>
+                              x.Name.Split("-").Last().Split('.').First().ToUpper() is "Q4_0");
 
                     if (gguf == null)
                     {
