@@ -1,4 +1,5 @@
 using System.Collections.Concurrent;
+using System.Linq;
 using System.Runtime.Caching;
 using System.Security.Cryptography;
 using System.Text;
@@ -179,6 +180,18 @@ namespace Onllama.ModelScope2Registry
                             digest = ggufDigest
                         }
                     };
+
+                    if (modelScope.Data.Files.Any(x => x.Name.ToUpper() is "LICENSE" or "LICENSE.MD"))
+                    {
+                        var license = modelScope.Data.Files.First(x =>
+                            x.Name.ToUpper() is "LICENSE" or "LICENSE.MD");
+                        layers.Add(new
+                        {
+                            mediaType = "application/vnd.ollama.image.license",
+                            size = license.Size,
+                            digest = $"sha256:{license.Sha256}"
+                        });
+                    }
 
                     try
                     {
