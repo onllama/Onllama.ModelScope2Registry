@@ -98,6 +98,8 @@ namespace Onllama.ModelScope2Registry
                             context.Response.Headers.ContentLength = lenDict[digest];
                         else
                         {
+                            #region ForwardProxy
+
                             //context.Response.Headers.TryAdd("X-Forwarder-By", "ModelScope2Registry");
                             //context.Response.Headers.Location = context.Request.Path.Value;
 
@@ -106,6 +108,9 @@ namespace Onllama.ModelScope2Registry
                             //var response = await reqContext.ForwardTo(new Uri("https://www.modelscope.cn/")).Send();
                             //var reStream = context.Response.BodyWriter.AsStream();
                             //await (await response.Content.ReadAsStreamAsync()).CopyToAsync(reStream);
+
+                            #endregion
+
                             context.Response.Redirect(url);
                             context.Response.StatusCode = 307;
                         }
