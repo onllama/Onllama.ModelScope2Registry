@@ -5,6 +5,11 @@ ModelScope2Registry 是 Ollama 到 ModelScope 的模型 Registry 镜像站 / 加
 请选择带有 GGUF 模型的仓库：
 ```
 ollama run modelscope2ollama-registry.azurewebsites.net/qwen/Qwen2.5-7B-Instruct-gguf
+
+# （可选的，复制模型为较短的新名称并移除原名称模型）
+# ollama cp modelscope2ollama-registry.azurewebsites.net/qwen/Qwen2.5-7B-Instruct-gguf Qwen2.5:7B
+# ollama rm modelscope2ollama-registry.azurewebsites.net/qwen/Qwen2.5-7B-Instruct-gguf
+# ollama run Qwen2.5:7B
 ```
 这将能够拉取 `https://www.modelscope.cn/models/qwen/Qwen2.5-0.5B-Instruct-gguf` 中的模型，对于不带有标签或 `latest` 将依次按顺序尝试选择`Q4_K_M`、`Q4_0`、`Q8_0`量化。
 ### 指定量化
