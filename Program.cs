@@ -181,21 +181,21 @@ namespace Onllama.ModelScope2Registry
                         }
                     };
 
-                    if (modelScope.Data.Files.Any(x => x.Name.ToUpper() is "LICENSE" or "LICENSE.MD"))
-                    {
-                        var license = modelScope.Data.Files.First(x =>
-                            x.Name.ToUpper() is "LICENSE" or "LICENSE.MD");
-                        var licenseDigest = $"sha256:{license.Sha256}";
+                    //if (modelScope.Data.Files.Any(x => x.Name.ToUpper() is "LICENSE" or "LICENSE.MD"))
+                    //{
+                    //    var license = modelScope.Data.Files.First(x =>
+                    //        x.Name.ToUpper() is "LICENSE" or "LICENSE.MD");
+                    //    var licenseDigest = $"sha256:{license.Sha256}";
 
-                        redirectDict.TryAdd(licenseDigest,
-                            $"https://www.modelscope.cn/models/{user}/{repo}/resolve/master/{license.Name}");
-                        layers.Add(new
-                        {
-                            mediaType = "application/vnd.ollama.image.license",
-                            size = license.Size,
-                            digest = licenseDigest
-                        });
-                    }
+                    //    redirectDict.TryAdd(licenseDigest,
+                    //        $"https://www.modelscope.cn/models/{user}/{repo}/resolve/master/{license.Name}");
+                    //    layers.Add(new
+                    //    {
+                    //        mediaType = "application/vnd.ollama.image.license",
+                    //        size = license.Size,
+                    //        digest = licenseDigest
+                    //    });
+                    //}
 
                     try
                     {
