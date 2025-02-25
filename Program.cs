@@ -181,21 +181,24 @@ namespace Onllama.ModelScope2Registry
                         }
                     };
 
-                    //if (modelScope.Data.Files.Any(x => x.Name.ToUpper() is "LICENSE" or "LICENSE.MD"))
-                    //{
-                    //    var license = modelScope.Data.Files.First(x =>
-                    //        x.Name.ToUpper() is "LICENSE" or "LICENSE.MD");
-                    //    var licenseDigest = $"sha256:{license.Sha256}";
+                    if (modelScope.Data.Files.Any(x => x.Name.ToUpper() is "LICENSE" or "LICENSE.MD"))
+                    {
+                        var license = modelScope.Data.Files.First(x =>
+                            x.Name.ToUpper() is "LICENSE" or "LICENSE.MD");
+                        var licenseStr = await new HttpClient().GetStringAsync(
+                            $"https://www.modelscope.cn/models/{user}/{repo}/resolve/master/{license.Name}");
+                        var licenseByte = Encoding.UTF8.GetBytes(licenseStr);
+                        var licenseDigest =
+                            $"sha256:{BitConverter.ToString(SHA256.HashData(licenseByte)).Replace("-", string.Empty).ToLower()}";
+                        digestDict.TryAdd(licenseDigest, licenseStr);
 
-                    //    redirectDict.TryAdd(licenseDigest,
-                    //        $"https://www.modelscope.cn/models/{user}/{repo}/resolve/master/{license.Name}");
-                    //    layers.Add(new
-                    //    {
-                    //        mediaType = "application/vnd.ollama.image.license",
-                    //        size = license.Size,
-                    //        digest = licenseDigest
-                    //    });
-                    //}
+                        layers.Add(new
+                        {
+                            mediaType = "application/vnd.ollama.image.license",
+                            size = licenseByte.Length,
+                            digest = licenseDigest
+                        });
+                    }
 
                     try
                     {
