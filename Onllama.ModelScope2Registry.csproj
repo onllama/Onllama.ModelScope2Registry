@@ -9,7 +9,7 @@
   <ItemGroup>
     <PackageReference Include="DeepCloner.Core" Version="0.1.0" />
     <PackageReference Include="ProxyKit" Version="2.3.4" />
-    <PackageReference Include="System.Runtime.Caching" Version="9.0.0" />
+    <PackageReference Include="System.Runtime.Caching" Version="9.0.2" />
   </ItemGroup>
 
 </Project>
