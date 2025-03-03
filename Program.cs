@@ -227,7 +227,25 @@ namespace Onllama.ModelScope2Registry
                                 digest = configDigest
                             };
 
-                            if (metadata["tokenizer.chat_template"] != null && templateMapDict.TryGetValue(
+                            if (modelScope.Data.Files.Any(x => x.Name.ToUpper() is "TEMPLATE"))
+                            {
+                                var template = modelScope.Data.Files.First(x =>
+                                    x.Name.ToUpper() is "TEMPLATE");
+                                var templateStr = await new HttpClient().GetStringAsync(
+                                    $"https://www.modelscope.cn/models/{user}/{repo}/resolve/master/{template.Name}");
+                                var templateByte = Encoding.UTF8.GetBytes(templateStr);
+                                var templateDigest =
+                                    $"sha256:{BitConverter.ToString(SHA256.HashData(templateByte)).Replace("-", string.Empty).ToLower()}";
+                                digestDict.TryAdd(templateDigest, templateStr);
+
+                                layers.Add(new
+                                {
+                                    mediaType = "application/vnd.ollama.image.template",
+                                    size = templateByte.Length,
+                                    digest = templateDigest
+                                });
+                            }
+                            else if (metadata["tokenizer.chat_template"] != null && templateMapDict.TryGetValue(
                                     metadata["tokenizer.chat_template"]?.ToString().Trim() ?? string.Empty,
                                     out templateName) || templateStrDict.ContainsKey(templateTag))
                             {
@@ -246,7 +264,25 @@ namespace Onllama.ModelScope2Registry
                                     });
                                 }
 
-                                if (paramsStrDict.TryGetValue(templateName, out var paramsStr))
+                                if (modelScope.Data.Files.Any(x => x.Name.ToUpper() is "PARAMS"))
+                                {
+                                    var param = modelScope.Data.Files.First(x =>
+                                        x.Name.ToUpper() is "PARAMS");
+                                    var paramStr = await new HttpClient().GetStringAsync(
+                                        $"https://www.modelscope.cn/models/{user}/{repo}/resolve/master/{param.Name}");
+                                    var paramByte = Encoding.UTF8.GetBytes(paramStr);
+                                    var paramDigest =
+                                        $"sha256:{BitConverter.ToString(SHA256.HashData(paramByte)).Replace("-", string.Empty).ToLower()}";
+                                    digestDict.TryAdd(paramDigest, paramStr);
+
+                                    layers.Add(new
+                                    {
+                                        mediaType = "application/vnd.ollama.image.params",
+                                        size = paramByte.Length,
+                                        digest = paramDigest
+                                    });
+                                }
+                                else if (paramsStrDict.TryGetValue(templateName, out var paramsStr))
                                 {
                                     var paramsByte = Encoding.UTF8.GetBytes(paramsStr);
                                     var paramsDigest =
