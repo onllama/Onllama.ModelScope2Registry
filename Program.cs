@@ -181,21 +181,29 @@ namespace Onllama.ModelScope2Registry
                         }
                     };
 
-                    if (modelScope.Data.Files.Any(x => x.Name.ToUpper() is "LICENSE" or "LICENSE.MD"))
+                    try
                     {
-                        var license = modelScope.Data.Files.First(x =>
-                            x.Name.ToUpper() is "LICENSE" or "LICENSE.MD");
-                        var (licenseDigest, licenseStr, licenseByte) =
-                            await FileGetLayer(user, repo, license.Name);
-                        digestDict.TryAdd(licenseDigest, licenseStr);
-
-                        layers.Add(new
+                        if (modelScope.Data.Files.Any(x => x.Name.ToUpper() is "LICENSE" or "LICENSE.MD"))
                         {
-                            mediaType = "application/vnd.ollama.image.license",
-                            size = licenseByte.Length,
-                            digest = licenseDigest
-                        });
+                            var license = modelScope.Data.Files.First(x =>
+                                x.Name.ToUpper() is "LICENSE" or "LICENSE.MD");
+                            var (licenseDigest, licenseStr, licenseByte) =
+                                await FileGetLayer(user, repo, license.Name);
+                            digestDict.TryAdd(licenseDigest, licenseStr);
+
+                            layers.Add(new
+                            {
+                                mediaType = "application/vnd.ollama.image.license",
+                                size = licenseByte.Length,
+                                digest = licenseDigest
+                            });
+                        }
                     }
+                    catch (Exception e)
+                    {
+                        Console.WriteLine(e);
+                    }
+
 
                     try
                     {
@@ -356,11 +364,14 @@ namespace Onllama.ModelScope2Registry
 
         public static async Task<string> GetWithCache(string key, int minutes = 15)
         {
+            var client = new HttpClient();
+            client.DefaultRequestHeaders.Add("User-Agent", "curl/8.5.0");
+
             if (MemoryCache.Default.Contains("GET:" + key))
                 return MemoryCache.Default.Get("GET:" + key).ToString() ??
-                       await new HttpClient().GetStringAsync(key);
+                       await client.GetStringAsync(key);
 
-            var stringAsync = await new HttpClient().GetStringAsync(key);
+            var stringAsync = await client.GetStringAsync(key);
             MemoryCache.Default.Add("GET:" + key, stringAsync, DateTimeOffset.Now.AddMinutes(minutes));
             return stringAsync;
         }
@@ -368,7 +379,10 @@ namespace Onllama.ModelScope2Registry
         public static async Task<(string digest, string str, byte[] bytes)> FileGetLayer(string user, string repo,
             string fileName)
         {
-            var paramStr = await new HttpClient().GetStringAsync(
+            var client = new HttpClient();
+            client.DefaultRequestHeaders.Add("User-Agent", "curl/8.5.0");
+
+            var paramStr = await client.GetStringAsync(
                 $"https://www.modelscope.cn/models/{user}/{repo}/resolve/master/{fileName}");
             var paramByte = Encoding.UTF8.GetBytes(paramStr);
             var paramDigest =
@@ -378,12 +392,15 @@ namespace Onllama.ModelScope2Registry
 
         public static async Task<string> PostWithCache(string key, string body, int minutes = 15)
         {
+            var client = new HttpClient();
+            client.DefaultRequestHeaders.Add("User-Agent", "curl/8.5.0");
+
             if (MemoryCache.Default.Contains("POST:" + key + ":" + body))
                 return MemoryCache.Default.Get("POST:" + key + ":" + body).ToString() ??
-                       await (await new HttpClient().PostAsync(key, new StringContent(body))).Content
+                       await (await client.PostAsync(key, new StringContent(body))).Content
                            .ReadAsStringAsync();
 
-            var stringAsync = await (await new HttpClient().PostAsync(key, new StringContent(body))).Content
+            var stringAsync = await (await client.PostAsync(key, new StringContent(body))).Content
                 .ReadAsStringAsync();
             MemoryCache.Default.Add("POST:" + key + ":" + body, stringAsync, DateTimeOffset.Now.AddMinutes(minutes));
             return stringAsync;
