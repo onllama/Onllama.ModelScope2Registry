@@ -185,11 +185,8 @@ namespace Onllama.ModelScope2Registry
                     {
                         var license = modelScope.Data.Files.First(x =>
                             x.Name.ToUpper() is "LICENSE" or "LICENSE.MD");
-                        var licenseStr = await new HttpClient().GetStringAsync(
-                            $"https://www.modelscope.cn/models/{user}/{repo}/resolve/master/{license.Name}");
-                        var licenseByte = Encoding.UTF8.GetBytes(licenseStr);
-                        var licenseDigest =
-                            $"sha256:{BitConverter.ToString(SHA256.HashData(licenseByte)).Replace("-", string.Empty).ToLower()}";
+                        var (licenseDigest, licenseStr, licenseByte) =
+                            await FileGetLayer(user, repo, license.Name);
                         digestDict.TryAdd(licenseDigest, licenseStr);
 
                         layers.Add(new
@@ -229,13 +226,8 @@ namespace Onllama.ModelScope2Registry
 
                             if (modelScope.Data.Files.Any(x => x.Name.ToUpper() is "TEMPLATE"))
                             {
-                                var template = modelScope.Data.Files.First(x =>
-                                    x.Name.ToUpper() is "TEMPLATE");
-                                var templateStr = await new HttpClient().GetStringAsync(
-                                    $"https://www.modelscope.cn/models/{user}/{repo}/resolve/master/{template.Name}");
-                                var templateByte = Encoding.UTF8.GetBytes(templateStr);
-                                var templateDigest =
-                                    $"sha256:{BitConverter.ToString(SHA256.HashData(templateByte)).Replace("-", string.Empty).ToLower()}";
+                                var (templateDigest, templateStr, templateByte) =
+                                    await FileGetLayer(user, repo, "TEMPLATE");
                                 digestDict.TryAdd(templateDigest, templateStr);
 
                                 layers.Add(new
@@ -266,13 +258,8 @@ namespace Onllama.ModelScope2Registry
 
                                 if (modelScope.Data.Files.Any(x => x.Name.ToUpper() is "PARAMS"))
                                 {
-                                    var param = modelScope.Data.Files.First(x =>
-                                        x.Name.ToUpper() is "PARAMS");
-                                    var paramStr = await new HttpClient().GetStringAsync(
-                                        $"https://www.modelscope.cn/models/{user}/{repo}/resolve/master/{param.Name}");
-                                    var paramByte = Encoding.UTF8.GetBytes(paramStr);
-                                    var paramDigest =
-                                        $"sha256:{BitConverter.ToString(SHA256.HashData(paramByte)).Replace("-", string.Empty).ToLower()}";
+                                    var (paramDigest, paramStr, paramByte) =
+                                        await FileGetLayer(user, repo, "PARAMS");
                                     digestDict.TryAdd(paramDigest, paramStr);
 
                                     layers.Add(new
@@ -304,13 +291,8 @@ namespace Onllama.ModelScope2Registry
                     {
                         if (modelScope.Data.Files.Any(x => x.Name.ToUpper() is "TEMPLATE"))
                         {
-                            var template = modelScope.Data.Files.First(x =>
-                                x.Name.ToUpper() is "TEMPLATE");
-                            var templateStr = await new HttpClient().GetStringAsync(
-                                $"https://www.modelscope.cn/models/{user}/{repo}/resolve/master/{template.Name}");
-                            var templateByte = Encoding.UTF8.GetBytes(templateStr);
-                            var templateDigest =
-                                $"sha256:{BitConverter.ToString(SHA256.HashData(templateByte)).Replace("-", string.Empty).ToLower()}";
+                            var (templateDigest, templateStr, templateByte) =
+                                await FileGetLayer(user, repo, "TEMPLATE");
                             digestDict.TryAdd(templateDigest, templateStr);
 
                             layers.Add(new
@@ -323,13 +305,8 @@ namespace Onllama.ModelScope2Registry
 
                         if (modelScope.Data.Files.Any(x => x.Name.ToUpper() is "PARAMS"))
                         {
-                            var param = modelScope.Data.Files.First(x =>
-                                x.Name.ToUpper() is "PARAMS");
-                            var paramStr = await new HttpClient().GetStringAsync(
-                                $"https://www.modelscope.cn/models/{user}/{repo}/resolve/master/{param.Name}");
-                            var paramByte = Encoding.UTF8.GetBytes(paramStr);
-                            var paramDigest =
-                                $"sha256:{BitConverter.ToString(SHA256.HashData(paramByte)).Replace("-", string.Empty).ToLower()}";
+                            var (paramDigest, paramStr, paramByte) =
+                                await FileGetLayer(user, repo, "PARAMS");
                             digestDict.TryAdd(paramDigest, paramStr);
 
                             layers.Add(new
@@ -386,6 +363,17 @@ namespace Onllama.ModelScope2Registry
             var stringAsync = await new HttpClient().GetStringAsync(key);
             MemoryCache.Default.Add("GET:" + key, stringAsync, DateTimeOffset.Now.AddMinutes(minutes));
             return stringAsync;
+        }
+
+        public static async Task<(string digest, string str, byte[] bytes)> FileGetLayer(string user, string repo,
+            string fileName)
+        {
+            var paramStr = await new HttpClient().GetStringAsync(
+                $"https://www.modelscope.cn/models/{user}/{repo}/resolve/master/{fileName}");
+            var paramByte = Encoding.UTF8.GetBytes(paramStr);
+            var paramDigest =
+                $"sha256:{BitConverter.ToString(SHA256.HashData(paramByte)).Replace("-", string.Empty).ToLower()}";
+            return (paramDigest, paramStr, paramByte);
         }
 
         public static async Task<string> PostWithCache(string key, string body, int minutes = 15)
