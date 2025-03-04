@@ -297,32 +297,39 @@ namespace Onllama.ModelScope2Registry
                     }
                     catch (Exception e)
                     {
-                        if (modelScope.Data.Files.Any(x => x.Name.ToUpper() is "TEMPLATE"))
+                        try
                         {
-                            var (templateDigest, templateStr, templateByte) =
-                                await FileGetLayer(user, repo, "TEMPLATE");
-                            digestDict.TryAdd(templateDigest, templateStr);
-
-                            layers.Add(new
+                            if (modelScope.Data.Files.Any(x => x.Name.ToUpper() is "TEMPLATE"))
                             {
-                                mediaType = "application/vnd.ollama.image.template",
-                                size = templateByte.Length,
-                                digest = templateDigest
-                            });
+                                var (templateDigest, templateStr, templateByte) =
+                                    await FileGetLayer(user, repo, "TEMPLATE");
+                                digestDict.TryAdd(templateDigest, templateStr);
+
+                                layers.Add(new
+                                {
+                                    mediaType = "application/vnd.ollama.image.template",
+                                    size = templateByte.Length,
+                                    digest = templateDigest
+                                });
+                            }
+
+                            if (modelScope.Data.Files.Any(x => x.Name.ToUpper() is "PARAMS"))
+                            {
+                                var (paramDigest, paramStr, paramByte) =
+                                    await FileGetLayer(user, repo, "PARAMS");
+                                digestDict.TryAdd(paramDigest, paramStr);
+
+                                layers.Add(new
+                                {
+                                    mediaType = "application/vnd.ollama.image.params",
+                                    size = paramByte.Length,
+                                    digest = paramDigest
+                                });
+                            }
                         }
-
-                        if (modelScope.Data.Files.Any(x => x.Name.ToUpper() is "PARAMS"))
+                        catch (Exception exception)
                         {
-                            var (paramDigest, paramStr, paramByte) =
-                                await FileGetLayer(user, repo, "PARAMS");
-                            digestDict.TryAdd(paramDigest, paramStr);
-
-                            layers.Add(new
-                            {
-                                mediaType = "application/vnd.ollama.image.params",
-                                size = paramByte.Length,
-                                digest = paramDigest
-                            });
+                            Console.WriteLine(exception);
                         }
 
                         var configStr = modelConfig.Replace("<@MODEL>", "unknown")
