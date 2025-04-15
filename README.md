@@ -1,7 +1,7 @@
 ## Onllama.ModelScope2Registry 
 
 > [!NOTE]
-> 🎉 ModelScope 官方现已支持 [Ollama集成](https://modelscope.cn/docs/models/advanced-usage/ollama-integration)！
+> 🎉 ModelScope 官方现已支持 [Ollama 集成](https://modelscope.cn/docs/models/advanced-usage/ollama-integration)！
 
 ModelScope2Registry 是 Ollama 到 ModelScope 的模型 Registry 镜像站 / 加速器，它为 ModelScope 补齐更多了 Ollama Registry Manifests 信息，使 Ollama 能够从 ModelScope 魔搭 更快的 拉取 / 下载 模型。 
 ## 快速开始
